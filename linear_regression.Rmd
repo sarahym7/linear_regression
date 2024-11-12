@@ -2,7 +2,7 @@
 title: "Linear Regression"
 author: "Sarahy Martinez"
 date: "2024-11-12"
-output: html_document
+output: github_document
 ---
 
 
