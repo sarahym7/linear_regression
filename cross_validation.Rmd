@@ -107,16 +107,111 @@ train_df %>%
 ```
 
 
+Looking at prediction accuracy 
+
+```{r}
+
+rmse(linear_mod, test_df) #computes a root mean square  error 
+rmse(smooth_df, test_df) # does the best for the particuar training and testing split
+rmse(wigggly_mod, test_df) # chases noise
+
+```
+
+Cross validation picks among the three models and smooth does the best, can't think that it's nested within the model
+We have comparing models like aic , not a p-value but how do we compare models like prediction accuracy to say one model compares to other predictions. 
 
 
+## Cross validation using the `modelr` package 
+
+```{r}
+# we can do repeats and write a function to repeat and modlr generates the testing of training data sets. 
+
+cv_df = 
+  crossv_mc(nonlin_df, 100)  # here we have train, test and id 
+
+```
+
+What is happening here? We are resampling and drawing samples that already exist 
+
+```{r}
+
+cv_df %>% 
+  pull(train) %>% # pull the train column
+  .[[1]] %>%  # we are checking the first element of this list  
+  as_tibble()  # force this to be a tibble 
+
+cv_df %>% pull(test) %>% .[[1]] %>%as_tibble() # resulting 7 are here 
+
+# structure of the cross is to have two list columns side by side, the training for a particular split, testing for a particular split , id for the split and then same thing etc. Instead of trying to store as hundred dataset, just stored as row numbers but we will convert back to a tibble. 
 
 
+```
 
 
+```{r}
+
+cv_df =
+  cv_df %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+ # re-sample objects and you can do that in lm but not mcgv gam function so we have to do this step
+  
+```
+
+Lets try to fit models and get RMSE's for them 
+```{r}
+
+cv_df = cv_df %>% 
+  mutate(
+    linear_mod = map(.x = train, ~lm(y ~ x, data = .x)), # we want to fit for each element so we will map across
+    smooth_mod = map(.x = train, ~gam(y ~ s(x), data = .x)),  # made new variables linear, smooth etc and place below
+    wiggly_mod = map(.x = train, ~gam(y ~ s(x, k = 30), sp = 10e-6, data = .x))
+  ) %>%  #produces a list column with linear models  # we want to do a similar thing with the smooth and wiggly 
+mutate(
+   rmse_linear = map2_dbl( .x = linear_mod, .y = test, ~rmse(model = .x, data = .y)),
+   rmse_smooth = map2_dbl( .x = smooth_mod,  .y = test, ~rmse(model = .x, data = .y)),
+   rmse_wiggly = map2_dbl( .x = wiggly_mod,.y = test, ~rmse(model = .x, data = .y))
+  #map2_dbl just gives the numbers, map2 gives the list
+)
 
 
+# in general which model is better?
+```
 
+What do the results say about model choice?
 
+```{r}
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_"
+  ) %>% 
+  ggplot(aes(x = model, y=rmse))+ 
+  geom_violin()  # we have a distribution across 100 training sets and looks like linear model makes worse predictions , the smooth and wiggly are on the right track and then smooth model is doing the best. 
+
+```
+
+Compute the averages
+
+```{r}
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_"
+  ) %>% 
+  group_by(model) %>% 
+  summarize(avg_rmse = mean(rmse))
+
+```
 
 
 
