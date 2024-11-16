@@ -135,19 +135,19 @@ Looking at prediction accuracy
 rmse(linear_mod, test_df) #computes a root mean square  error 
 ```
 
-    ## [1] 0.7137613
+    ## [1] 0.6899121
 
 ``` r
 rmse(smooth_df, test_df) # does the best for the particuar training and testing split
 ```
 
-    ## [1] 0.3781075
+    ## [1] 0.2835992
 
 ``` r
 rmse(wigggly_mod, test_df) # chases noise
 ```
 
-    ## [1] 0.3618895
+    ## [1] 0.3111494
 
 Cross validation picks among the three models and smooth does the best,
 can’t think that it’s nested within the model We have comparing models
@@ -176,16 +176,16 @@ cv_df %>%
     ## # A tibble: 79 × 3
     ##       id     x      y
     ##    <int> <dbl>  <dbl>
-    ##  1     1 0.112  1.31 
-    ##  2     2 0.793 -1.66 
-    ##  3     3 0.548  0.668
-    ##  4     4 0.992 -3.62 
-    ##  5     5 0.220  1.10 
-    ##  6     6 0.640 -0.397
-    ##  7     7 0.239  1.32 
-    ##  8     8 0.816 -1.32 
-    ##  9     9 0.671 -0.174
-    ## 10    10 0.715 -0.440
+    ##  1     1 0.346  1.33 
+    ##  2     3 0.657 -0.326
+    ##  3     4 0.250  0.969
+    ##  4     6 0.592 -0.232
+    ##  5     7 0.284  0.737
+    ##  6     8 0.846 -1.96 
+    ##  7     9 0.391  0.897
+    ##  8    12 0.383  1.01 
+    ##  9    13 0.963 -3.31 
+    ## 10    14 0.180  0.935
     ## # ℹ 69 more rows
 
 ``` r
@@ -193,18 +193,18 @@ cv_df %>% pull(test) %>% .[[1]] %>%as_tibble() # resulting 7 are here
 ```
 
     ## # A tibble: 21 × 3
-    ##       id      x      y
-    ##    <int>  <dbl>  <dbl>
-    ##  1    17 0.327   0.950
-    ##  2    20 0.449   0.845
-    ##  3    27 0.529   0.471
-    ##  4    29 0.878  -1.95 
-    ##  5    30 0.0427  0.298
-    ##  6    31 0.0769  0.162
-    ##  7    36 0.972  -3.97 
-    ##  8    38 0.907  -3.03 
-    ##  9    44 0.829  -1.42 
-    ## 10    47 0.498   0.330
+    ##       id       x       y
+    ##    <int>   <dbl>   <dbl>
+    ##  1     2 0.00154 -0.252 
+    ##  2     5 0.398    0.879 
+    ##  3    10 0.783   -1.36  
+    ##  4    11 0.917   -2.87  
+    ##  5    18 0.509    0.0178
+    ##  6    19 0.0212  -0.103 
+    ##  7    24 0.418    0.764 
+    ##  8    27 0.604   -0.0966
+    ##  9    30 0.651    0.0401
+    ## 10    38 0.183    1.12  
     ## # ℹ 11 more rows
 
 ``` r
@@ -275,6 +275,108 @@ cv_df %>%
     ## # A tibble: 3 × 2
     ##   model  avg_rmse
     ##   <chr>     <dbl>
-    ## 1 linear    0.834
-    ## 2 smooth    0.335
-    ## 3 wiggly    0.405
+    ## 1 linear    0.844
+    ## 2 smooth    0.306
+    ## 3 wiggly    0.367
+
+## Try on a real dataset.
+
+``` r
+child_growth = read_csv("./nepalese_children.csv") %>% 
+  mutate(
+    weight_cp = (weight > 7) * (weight -7)   # will be flat after 7 and before
+  )
+```
+
+    ## Rows: 2705 Columns: 5
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## dbl (5): age, sex, weight, height, armc
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+weight vs arm circumference
+
+``` r
+child_growth %>% 
+  ggplot(aes(x = weight, y = armc)) +
+  geom_point(alpha = .3)
+```
+
+![](cross_validation_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+
+``` r
+# we've got some non-linearity happening. The models we want to compare are linear and a straight line through datapoints, another as a variation, next we will revisit gam and visit a smooth curve. It is important to look at the fits and if we decided to compare them whats the conclusion we should draw.
+```
+
+Fit the models
+
+``` r
+linear_mod = lm(armc ~ weight, data = child_growth)
+pwlin_mod = lm(armc ~ weight + weight_cp, data = child_growth)
+smooth_mod = gam(armc ~ s(weight), data = child_growth)
+```
+
+``` r
+child_growth %>% 
+  gather_predictions(linear_mod, pwlin_mod, smooth_mod) %>% 
+  ggplot(aes(x = weight, y =armc))+
+  geom_point(alpha = .3) +
+  geom_line(aes(y= pred), color = "red")+
+  facet_grid( . ~ model)
+```
+
+![](cross_validation_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+``` r
+# we see in the fit the linear model straight through, the piece wise we have a straight line and then another with different slopes, the smooth model is the most flexible with  a curve and not necessarily accurate.
+```
+
+Try to understand model fit using cross validation
+
+``` r
+cv_df = 
+  crossv_mc(child_growth, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(train, as_tibble)
+  )
+```
+
+See if I can fit the models to the splits
+
+``` r
+cv_df = cv_df %>% 
+  mutate(
+    linear_mod = map(.x = train, ~lm(armc ~ weight, data = .x)), 
+    pwlin_mod = map(.x = train, ~ lm(armc ~ weight + weight_cp, data = .x)),
+    smooth_mod = map(.x = train, ~gam(armc ~ s(weight), data = .x)),
+  ) %>% 
+mutate(
+   rmse_linear = map2_dbl( .x = linear_mod, .y = test, ~rmse(model = .x, data = .y)),
+   rmse_smooth = map2_dbl( .x = smooth_mod,  .y = test, ~rmse(model = .x, data = .y)),
+   rmse_pwlin = map2_dbl( .x = pwlin_mod,.y = test, ~rmse(model = .x, data = .y))
+)
+```
+
+Violin plot of rmse’s
+
+``` r
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_"
+  ) %>% 
+  ggplot(aes(x = model, y = rmse))+
+  geom_violin()
+```
+
+![](cross_validation_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
+
+``` r
+# we can see that these are muchb closer and explains why model selection is not easy because we have to pick the p-values. we can change a point in 7 than 8. also if we want to compare to the smooth would be hard by p value. linear okay, piecewise is better and the smooth is a bit better bc its shifted down. Now we should pick the piece wise liner model because in terms of rmse there's a clear improvement from linear to piece wise. The interpretation is also a bit more forward in the slope model. Although the smooth model is more correct it's harder to interpret. 
+```

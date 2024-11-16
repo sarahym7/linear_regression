@@ -213,5 +213,116 @@ cv_df %>%
 
 ```
 
+## Try on a real dataset. 
+
+```{r}
+
+child_growth = read_csv("./nepalese_children.csv") %>% 
+  mutate(
+    weight_cp = (weight > 7) * (weight -7)   # will be flat after 7 and before
+  )
+
+```
+
+
+weight vs arm circumference 
+
+```{r}
+child_growth %>% 
+  ggplot(aes(x = weight, y = armc)) +
+  geom_point(alpha = .3)
+
+# we've got some non-linearity happening. The models we want to compare are linear and a straight line through datapoints, another as a variation, next we will revisit gam and visit a smooth curve. It is important to look at the fits and if we decided to compare them whats the conclusion we should draw.
+
+```
+
+
+Fit the models 
+```{r}
+
+linear_mod = lm(armc ~ weight, data = child_growth)
+pwlin_mod = lm(armc ~ weight + weight_cp, data = child_growth)
+smooth_mod = gam(armc ~ s(weight), data = child_growth)
+
+```
+
+
+```{r}
+
+child_growth %>% 
+  gather_predictions(linear_mod, pwlin_mod, smooth_mod) %>% 
+  ggplot(aes(x = weight, y =armc))+
+  geom_point(alpha = .3) +
+  geom_line(aes(y= pred), color = "red")+
+  facet_grid( . ~ model)
+
+
+# we see in the fit the linear model straight through, the piece wise we have a straight line and then another with different slopes, the smooth model is the most flexible with  a curve and not necessarily accurate.
+
+```
+
+
+Try to understand model fit using cross validation
+
+```{r}
+
+cv_df = 
+  crossv_mc(child_growth, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(train, as_tibble)
+  )
+```
+
+
+See if I can fit the models to the splits
+
+```{r}
+
+cv_df = cv_df %>% 
+  mutate(
+    linear_mod = map(.x = train, ~lm(armc ~ weight, data = .x)), 
+    pwlin_mod = map(.x = train, ~ lm(armc ~ weight + weight_cp, data = .x)),
+    smooth_mod = map(.x = train, ~gam(armc ~ s(weight), data = .x)),
+  ) %>% 
+mutate(
+   rmse_linear = map2_dbl( .x = linear_mod, .y = test, ~rmse(model = .x, data = .y)),
+   rmse_smooth = map2_dbl( .x = smooth_mod,  .y = test, ~rmse(model = .x, data = .y)),
+   rmse_pwlin = map2_dbl( .x = pwlin_mod,.y = test, ~rmse(model = .x, data = .y))
+)
+
+
+```
+
+
+Violin plot of rmse's
+
+```{r}
+
+cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_"
+  ) %>% 
+  ggplot(aes(x = model, y = rmse))+
+  geom_violin()
+
+# we can see that these are muchb closer and explains why model selection is not easy because we have to pick the p-values. we can change a point in 7 than 8. also if we want to compare to the smooth would be hard by p value. linear okay, piecewise is better and the smooth is a bit better bc its shifted down. Now we should pick the piece wise liner model because in terms of rmse there's a clear improvement from linear to piece wise. The interpretation is also a bit more forward in the slope model. Although the smooth model is more correct it's harder to interpret. 
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 
