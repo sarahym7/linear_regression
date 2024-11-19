@@ -210,13 +210,8 @@ mutate(
     sd_est = sd(estimate)
   )
 
-
-
-
-
 ```
 
+What if your assumptions are met? Does it do something reasonable?
 
-
-
-
+Yes, they both work well

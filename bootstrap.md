@@ -78,8 +78,8 @@ lm(y~x, data = sim_df_const) %>%  broom::tidy()
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     2.26    0.0834      27.0 6.47e- 76
-    ## 2 x               2.90    0.0593      48.9 2.76e-129
+    ## 1 (Intercept)     1.98    0.0891      22.2 7.23e- 61
+    ## 2 x               3.06    0.0621      49.3 3.99e-130
 
 ``` r
 lm(y~x, data = sim_df_nonconst) %>%  broom::tidy()
@@ -88,8 +88,8 @@ lm(y~x, data = sim_df_nonconst) %>%  broom::tidy()
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     2.03    0.0941      21.6 5.77e- 59
-    ## 2 x               3.00    0.0670      44.8 7.02e-121
+    ## 1 (Intercept)     1.93    0.0930      20.8 3.29e- 56
+    ## 2 x               3.14    0.0648      48.5 1.40e-128
 
 ``` r
 # from our plots we can see that there is alot of uncertainty because of fanning out. We can get estimates and stand deviation if we were to make assumptions but we want to solve the issue of uncertainty by bootstrapping. Issue is that we also don't trust the uncertainty of the estimates.
@@ -141,8 +141,8 @@ bootstrap_sample(sim_df_nonconst) %>%
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     1.92    0.0849      22.6 2.66e- 62
-    ## 2 x               3.01    0.0637      47.1 8.60e-126
+    ## 1 (Intercept)     1.92    0.0996      19.3 3.55e- 51
+    ## 2 x               3.15    0.0688      45.8 4.43e-123
 
 ``` r
 # not a cohesive way of analysis
@@ -207,8 +207,8 @@ boot_results %>%
     ## # A tibble: 2 × 3
     ##   term        mean_est sd_est
     ##   <chr>          <dbl>  <dbl>
-    ## 1 (Intercept)     2.03 0.0592
-    ## 2 x               3.00 0.0989
+    ## 1 (Intercept)     1.93 0.0699
+    ## 2 x               3.14 0.100
 
 ``` r
 # giving the actual standard error and can we mimic this without making an assumption. Previously we have used a linear model that is a coincidence rather than what happens. If we compare bootstrap this is lower is we assumed constant variance which we have done in this example where we assume constant variance. 
@@ -244,8 +244,8 @@ boot_results %>%
     ## # A tibble: 2 × 3
     ##   term        ci_lower ci_upper
     ##   <chr>          <dbl>    <dbl>
-    ## 1 (Intercept)     1.92     2.15
-    ## 2 x               2.81     3.20
+    ## 1 (Intercept)     1.79     2.06
+    ## 2 x               2.95     3.33
 
 ``` r
 # we get a CI based on repeated sampling and this gives about 2.91 and 3.31
@@ -277,5 +277,9 @@ mutate(
     ## # A tibble: 2 × 3
     ##   term        mean_est sd_est
     ##   <chr>          <dbl>  <dbl>
-    ## 1 (Intercept)     2.03 0.0607
-    ## 2 x               3.00 0.0922
+    ## 1 (Intercept)     1.93 0.0720
+    ## 2 x               3.14 0.104
+
+What if your assumptions are met? Does it do something reasonable?
+
+Yes, they both work well
