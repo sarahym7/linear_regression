@@ -4,3 +4,117 @@ author: "Sarahy Martinez"
 date: "2024-11-19"
 output: github_document
 ---
+
+
+```{r}
+library(tidyverse)
+library(modelr)
+
+
+```
+
+## Simulate Data
+
+```{r}
+n_samp = 250
+
+sim_df_const = 
+  tibble(
+    x = rnorm(n_samp, 1, 1),
+    error = rnorm(n_samp, 0, 1),
+    y = 2 + 3 * x + error
+  )
+
+sim_df_nonconst = sim_df_const %>% 
+  mutate(
+  error = error * .75 * x,
+  y = 2 + 3 * x + error
+)
+
+```
+
+Plot the data sets
+
+```{r}
+
+sim_df_const %>% 
+  ggplot(aes(x =x, y = y))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+
+sim_df_nonconst %>% 
+  ggplot(aes(x =x, y = y))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+
+# can fit a linear regression but the key assumptions is fundamentally wrong. Assumptions we make to inference don't match so we will try to solve with bootstrap. Issue comes from figuring out the uncertainty
+
+```
+
+Fit linear regression
+
+```{r}
+lm(y~x, data = sim_df_const) %>%  broom::tidy()
+lm(y~x, data = sim_df_nonconst) %>%  broom::tidy()
+
+# from our plots we can see that there is alot of uncertainty because of fanning out. We can get estimates and stand deviation if we were to make assumptions but we want to solve the issue of uncertainty by bootstrapping. Issue is that we also don't trust the uncertainty of the estimates.
+
+```
+
+
+
+## Draw one bootstrap sample 
+
+```{r}
+bootstrap_sample = function(df){   # write a function based on a df
+  
+  sample_frac(df, replace = TRUE) %>%  # we want the same size bc CI and variance are dependent on the sample size
+  
+  arrange(x)  # makes easier to look what is going on 
+}
+
+
+```
+
+Check if df works 
+
+```{r}
+bootstrap_sample(sim_df_nonconst) %>% 
+   ggplot(aes(x =x, y = y))+
+  geom_point(alpha = .3)+
+  geom_smooth(method = "lm")+
+  ylim(-5,16)
+
+# keep running and you'll get different regression lines, analysis is look at the plot but boostrap helps estimate the slope. 
+
+
+```
+
+Could also 
+
+```{r}
+
+bootstrap_sample(sim_df_nonconst) %>% 
+   lm(y ~x, data = .) %>%
+  broom::tidy()
+
+# not a cohesive way of analysis
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
