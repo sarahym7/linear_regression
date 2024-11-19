@@ -104,15 +104,117 @@ bootstrap_sample(sim_df_nonconst) %>%
 ```
 
 
+## Many samples and analysis 
+
+```{r}
+
+boot_straps =
+  tibble(
+  strap_number = 1:1000,
+  strap_sample = rerun( 1000, bootstrap_sample(sim_df_nonconst))
+  )
+
+# once we've gotten here with a dataframe we're right back in place. Can do the same things we did. 
+
+
+```
+
+Can I run my analysis on these?
+
+```{r}
+
+boot_results =
+    boot_straps %>% 
+  mutate(
+    
+    models = map(.x = strap_sample, ~lm( y~x, data = .x)), 
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(strap_number, results) %>% 
+  unnest(results)
+
+# code works we have not double checked if they are different but we will trust. next we'll get a collection of results where we will map across models and just run broom tidy on each. 
+
+```
+
+
+What do I have now?
+ Distribution of estimated intercept and slope. So under repeated sampling that the variances are closer to the actual variance if we were to compute the standard error ( standard deviation of estimate) under repeated sampling.
+ 
+ 
+```{r}
+
+boot_results %>% 
+  group_by(term) %>% 
+  summarize(
+    
+    mean_est = mean(estimate),
+    sd_est = sd(estimate)
+  )
+
+
+# giving the actual standard error and can we mimic this without making an assumption. Previously we have used a linear model that is a coincidence rather than what happens. If we compare bootstrap this is lower is we assumed constant variance which we have done in this example where we assume constant variance. 
+
+```
+ 
+
+Constructing a confidence interval and looking at distributions 
+
+```{r}
+
+boot_results %>% 
+  filter( term == "x") %>% 
+  ggplot(aes(x = estimate))+
+  geom_density()
+#great bc data of repeated sampling and normally distributed 
+
+
+```
+
+Construct bootstrap CI
+
+```{r}
+
+boot_results %>% 
+  group_by(term) %>% 
+  summarize(
+    
+   ci_lower = quantile(estimate, 0.025),
+    ci_upper = quantile(estimate, 0.975)
+  )
+
+# we get a CI based on repeated sampling and this gives about 2.91 and 3.31
+
+
+```
+
+## Bootstrap using modelr
+use modelr to increase process of drawing repeated samples. 
+Can we simplify anything?
+
+```{r}
+
+sim_df_nonconst %>% 
+  bootstrap(1000,id = "strap_number") %>%   #resample and in cross validation we turned into a df, we can do the same thing before 
+mutate(
+    
+    models = map(.x = strap, ~lm( y~x, data = .x)), 
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(strap_number, results) %>% 
+  unnest(results) %>%   
+  group_by(term) %>% 
+  summarize(
+    
+    mean_est = mean(estimate),
+    sd_est = sd(estimate)
+  )
 
 
 
 
 
-
-
-
-
+```
 
 
 
