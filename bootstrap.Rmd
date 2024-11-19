@@ -1,0 +1,6 @@
+---
+title: "Bootstrap"
+author: "Sarahy Martinez"
+date: "2024-11-19"
+output: github_document
+---
