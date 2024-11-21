@@ -196,7 +196,7 @@ Can we simplify anything?
 
 sim_df_nonconst %>% 
   bootstrap(1000,id = "strap_number") %>%   #resample and in cross validation we turned into a df, we can do the same thing before 
-mutate(
+mutate(   # replaced id with id, we simply just renamed it without having to use the rename function
     
     models = map(.x = strap, ~lm( y~x, data = .x)), 
     results = map(models, broom::tidy)
@@ -210,8 +210,27 @@ mutate(
     sd_est = sd(estimate)
   )
 
+#boostrap says draw me a sample from this df, resample saves memory not new samples. In cross validation we used a df and mcgv but it doesn't work well so we'll do the same thing we've done. 
 ```
 
-What if your assumptions are met? Does it do something reasonable?
+Bootrap works if assumptions are not met but What if your assumptions are met? Does it do something reasonable?
 
 Yes, they both work well
+
+- if assumptions are true we can just use the linear models but we can also do this as well. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

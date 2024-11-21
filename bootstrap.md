@@ -78,8 +78,8 @@ lm(y~x, data = sim_df_const) %>%  broom::tidy()
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     1.98    0.0891      22.2 7.23e- 61
-    ## 2 x               3.06    0.0621      49.3 3.99e-130
+    ## 1 (Intercept)     1.95    0.0874      22.3 4.54e- 61
+    ## 2 x               3.07    0.0605      50.7 7.55e-133
 
 ``` r
 lm(y~x, data = sim_df_nonconst) %>%  broom::tidy()
@@ -88,8 +88,8 @@ lm(y~x, data = sim_df_nonconst) %>%  broom::tidy()
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     1.93    0.0930      20.8 3.29e- 56
-    ## 2 x               3.14    0.0648      48.5 1.40e-128
+    ## 1 (Intercept)     1.97    0.0873      22.5 5.55e- 62
+    ## 2 x               3.10    0.0605      51.3 5.92e-134
 
 ``` r
 # from our plots we can see that there is alot of uncertainty because of fanning out. We can get estimates and stand deviation if we were to make assumptions but we want to solve the issue of uncertainty by bootstrapping. Issue is that we also don't trust the uncertainty of the estimates.
@@ -118,12 +118,6 @@ bootstrap_sample(sim_df_nonconst) %>%
 
     ## `geom_smooth()` using formula = 'y ~ x'
 
-    ## Warning: Removed 1 row containing non-finite outside the scale range
-    ## (`stat_smooth()`).
-
-    ## Warning: Removed 1 row containing missing values or values outside the scale range
-    ## (`geom_point()`).
-
 ![](bootstrap_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
@@ -141,8 +135,8 @@ bootstrap_sample(sim_df_nonconst) %>%
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     1.92    0.0996      19.3 3.55e- 51
-    ## 2 x               3.15    0.0688      45.8 4.43e-123
+    ## 1 (Intercept)     1.89    0.0814      23.2 5.16e- 64
+    ## 2 x               3.24    0.0574      56.5 1.37e-143
 
 ``` r
 # not a cohesive way of analysis
@@ -207,8 +201,8 @@ boot_results %>%
     ## # A tibble: 2 × 3
     ##   term        mean_est sd_est
     ##   <chr>          <dbl>  <dbl>
-    ## 1 (Intercept)     1.93 0.0699
-    ## 2 x               3.14 0.100
+    ## 1 (Intercept)     1.97 0.0557
+    ## 2 x               3.10 0.0862
 
 ``` r
 # giving the actual standard error and can we mimic this without making an assumption. Previously we have used a linear model that is a coincidence rather than what happens. If we compare bootstrap this is lower is we assumed constant variance which we have done in this example where we assume constant variance. 
@@ -244,8 +238,8 @@ boot_results %>%
     ## # A tibble: 2 × 3
     ##   term        ci_lower ci_upper
     ##   <chr>          <dbl>    <dbl>
-    ## 1 (Intercept)     1.79     2.06
-    ## 2 x               2.95     3.33
+    ## 1 (Intercept)     1.86     2.08
+    ## 2 x               2.94     3.27
 
 ``` r
 # we get a CI based on repeated sampling and this gives about 2.91 and 3.31
@@ -259,7 +253,7 @@ simplify anything?
 ``` r
 sim_df_nonconst %>% 
   bootstrap(1000,id = "strap_number") %>%   #resample and in cross validation we turned into a df, we can do the same thing before 
-mutate(
+mutate(   # replaced id with id, we simply just renamed it without having to use the rename function
     
     models = map(.x = strap, ~lm( y~x, data = .x)), 
     results = map(models, broom::tidy)
@@ -277,9 +271,17 @@ mutate(
     ## # A tibble: 2 × 3
     ##   term        mean_est sd_est
     ##   <chr>          <dbl>  <dbl>
-    ## 1 (Intercept)     1.93 0.0720
-    ## 2 x               3.14 0.104
+    ## 1 (Intercept)     1.97 0.0536
+    ## 2 x               3.10 0.0812
 
-What if your assumptions are met? Does it do something reasonable?
+``` r
+#boostrap says draw me a sample from this df, resample saves memory not new samples. In cross validation we used a df and mcgv but it doesn't work well so we'll do the same thing we've done. 
+```
+
+Bootrap works if assumptions are not met but What if your assumptions
+are met? Does it do something reasonable?
 
 Yes, they both work well
+
+- if assumptions are true we can just use the linear models but we can
+  also do this as well.
