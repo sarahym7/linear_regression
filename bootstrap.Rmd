@@ -9,6 +9,7 @@ output: github_document
 ```{r}
 library(tidyverse)
 library(modelr)
+library(p8105.datasets)
 
 
 ```
@@ -218,6 +219,128 @@ Bootrap works if assumptions are not met but What if your assumptions are met? D
 Yes, they both work well
 
 - if assumptions are true we can just use the linear models but we can also do this as well. 
+
+## Revisist NYC Airbnb 
+
+```{r}
+
+data("nyc_airbnb")
+
+
+nyc_airbnb=
+  nyc_airbnb %>% 
+  mutate( stars = review_scores_location / 2) %>% 
+  rename(
+    
+    borough = neighbourhood_group,
+    neighborhood = neighbourhood) %>% 
+  filter(borough != "Staten Island") %>% 
+    select(price, stars, borough, neighborhood, room_type)
+
+```
+
+
+```{r}
+# graph first to see if there is any relationship. We see some relationship between stars and price but some non constant variance. We get same estimates but some standard errors that are not correct. 
+
+nyc_airbnb %>% 
+  ggplot(aes(x = stars , y = price))+
+  geom_point()
+
+
+```
+
+
+
+```{r}
+
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  drop_na(stars) %>% 
+    ggplot(aes(x = stars , y = price))+
+  geom_point()
+
+```
+
+Now we want to bootstrap, take a sample with replacement , fit a regression of price against stars and save the estimated intercept and slope each time. 
+
+```{r}
+
+airbnb_boot_results = nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  drop_na(stars) %>% 
+  bootstrap(1000,id = "strap_number") %>%   #generate 1000 samples 
+mutate(   
+    
+    models = map(.x = strap, ~lm( price~stars, data = .x)),  # fit a model to each of these samples price~ stars
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(strap_number, results) %>% 
+  unnest(results) 
+
+
+
+airbnb_boot_results%>%   
+  group_by(term) %>% 
+  summarize(
+    
+    mean_est = mean(estimate),
+    sd_est = sd(estimate)
+  )
+
+
+
+# bootstrap has higher variance bc of the noncontant variance 
+```
+
+Compare this to `lm`
+
+```{r}
+
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  drop_na(stars) %>% 
+  lm(price~stars, data = .) %>% 
+  broom::tidy()
+
+
+```
+
+
+```{r}
+
+
+airbnb_boot_results %>% 
+  filter( term == "stars") %>% 
+  ggplot(aes(x = estimate))+
+  geom_density()
+
+
+# assumig constant variance would think that everything is normally distribute but based on this graph no. We can get uncertainty and distribution of normal sampling wihout having to assume normality with bootstrapping. 
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -20,6 +20,7 @@ library(tidyverse)
 
 ``` r
 library(modelr)
+library(p8105.datasets)
 ```
 
 ## Simulate Data
@@ -78,8 +79,8 @@ lm(y~x, data = sim_df_const) %>%  broom::tidy()
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     1.95    0.0874      22.3 4.54e- 61
-    ## 2 x               3.07    0.0605      50.7 7.55e-133
+    ## 1 (Intercept)     2.08    0.0972      21.4 3.91e- 58
+    ## 2 x               2.96    0.0640      46.2 7.11e-124
 
 ``` r
 lm(y~x, data = sim_df_nonconst) %>%  broom::tidy()
@@ -88,8 +89,8 @@ lm(y~x, data = sim_df_nonconst) %>%  broom::tidy()
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     1.97    0.0873      22.5 5.55e- 62
-    ## 2 x               3.10    0.0605      51.3 5.92e-134
+    ## 1 (Intercept)     2.10    0.111       18.9 5.11e- 50
+    ## 2 x               2.90    0.0732      39.6 2.73e-109
 
 ``` r
 # from our plots we can see that there is alot of uncertainty because of fanning out. We can get estimates and stand deviation if we were to make assumptions but we want to solve the issue of uncertainty by bootstrapping. Issue is that we also don't trust the uncertainty of the estimates.
@@ -135,8 +136,8 @@ bootstrap_sample(sim_df_nonconst) %>%
     ## # A tibble: 2 × 5
     ##   term        estimate std.error statistic   p.value
     ##   <chr>          <dbl>     <dbl>     <dbl>     <dbl>
-    ## 1 (Intercept)     1.89    0.0814      23.2 5.16e- 64
-    ## 2 x               3.24    0.0574      56.5 1.37e-143
+    ## 1 (Intercept)     2.20    0.113       19.6 3.86e- 52
+    ## 2 x               2.81    0.0723      38.9 1.69e-107
 
 ``` r
 # not a cohesive way of analysis
@@ -201,8 +202,8 @@ boot_results %>%
     ## # A tibble: 2 × 3
     ##   term        mean_est sd_est
     ##   <chr>          <dbl>  <dbl>
-    ## 1 (Intercept)     1.97 0.0557
-    ## 2 x               3.10 0.0862
+    ## 1 (Intercept)     2.10 0.0640
+    ## 2 x               2.90 0.0815
 
 ``` r
 # giving the actual standard error and can we mimic this without making an assumption. Previously we have used a linear model that is a coincidence rather than what happens. If we compare bootstrap this is lower is we assumed constant variance which we have done in this example where we assume constant variance. 
@@ -238,8 +239,8 @@ boot_results %>%
     ## # A tibble: 2 × 3
     ##   term        ci_lower ci_upper
     ##   <chr>          <dbl>    <dbl>
-    ## 1 (Intercept)     1.86     2.08
-    ## 2 x               2.94     3.27
+    ## 1 (Intercept)     1.98     2.23
+    ## 2 x               2.75     3.06
 
 ``` r
 # we get a CI based on repeated sampling and this gives about 2.91 and 3.31
@@ -271,8 +272,8 @@ mutate(   # replaced id with id, we simply just renamed it without having to use
     ## # A tibble: 2 × 3
     ##   term        mean_est sd_est
     ##   <chr>          <dbl>  <dbl>
-    ## 1 (Intercept)     1.97 0.0536
-    ## 2 x               3.10 0.0812
+    ## 1 (Intercept)     2.10 0.0683
+    ## 2 x               2.90 0.0843
 
 ``` r
 #boostrap says draw me a sample from this df, resample saves memory not new samples. In cross validation we used a df and mcgv but it doesn't work well so we'll do the same thing we've done. 
@@ -285,3 +286,110 @@ Yes, they both work well
 
 - if assumptions are true we can just use the linear models but we can
   also do this as well.
+
+## Revisist NYC Airbnb
+
+``` r
+data("nyc_airbnb")
+
+
+nyc_airbnb=
+  nyc_airbnb %>% 
+  mutate( stars = review_scores_location / 2) %>% 
+  rename(
+    
+    borough = neighbourhood_group,
+    neighborhood = neighbourhood) %>% 
+  filter(borough != "Staten Island") %>% 
+    select(price, stars, borough, neighborhood, room_type)
+```
+
+``` r
+# graph first to see if there is any relationship. We see some relationship between stars and price but some non constant variance. We get same estimates but some standard errors that are not correct. 
+
+nyc_airbnb %>% 
+  ggplot(aes(x = stars , y = price))+
+  geom_point()
+```
+
+    ## Warning: Removed 9962 rows containing missing values or values outside the scale range
+    ## (`geom_point()`).
+
+![](bootstrap_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
+``` r
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  drop_na(stars) %>% 
+    ggplot(aes(x = stars , y = price))+
+  geom_point()
+```
+
+![](bootstrap_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+
+Now we want to bootstrap, take a sample with replacement , fit a
+regression of price against stars and save the estimated intercept and
+slope each time.
+
+``` r
+airbnb_boot_results = nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  drop_na(stars) %>% 
+  bootstrap(1000,id = "strap_number") %>%   #generate 1000 samples 
+mutate(   
+    
+    models = map(.x = strap, ~lm( price~stars, data = .x)),  # fit a model to each of these samples price~ stars
+    results = map(models, broom::tidy)
+  ) %>% 
+  select(strap_number, results) %>% 
+  unnest(results) 
+
+
+
+airbnb_boot_results%>%   
+  group_by(term) %>% 
+  summarize(
+    
+    mean_est = mean(estimate),
+    sd_est = sd(estimate)
+  )
+```
+
+    ## # A tibble: 2 × 3
+    ##   term        mean_est sd_est
+    ##   <chr>          <dbl>  <dbl>
+    ## 1 (Intercept)    -33.2  33.8 
+    ## 2 stars           43.1   6.86
+
+``` r
+# bootstrap has higher variance bc of the noncontant variance 
+```
+
+Compare this to `lm`
+
+``` r
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  drop_na(stars) %>% 
+  lm(price~stars, data = .) %>% 
+  broom::tidy()
+```
+
+    ## # A tibble: 2 × 5
+    ##   term        estimate std.error statistic  p.value
+    ##   <chr>          <dbl>     <dbl>     <dbl>    <dbl>
+    ## 1 (Intercept)    -34.3     22.9      -1.50 1.35e- 1
+    ## 2 stars           43.3      4.78      9.07 1.39e-19
+
+``` r
+airbnb_boot_results %>% 
+  filter( term == "stars") %>% 
+  ggplot(aes(x = estimate))+
+  geom_density()
+```
+
+![](bootstrap_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+``` r
+# assumig constant variance would think that everything is normally distribute but based on this graph no. We can get uncertainty and distribution of normal sampling wihout having to assume normality with bootstrapping. 
+```
