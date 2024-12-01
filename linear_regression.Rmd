@@ -382,6 +382,8 @@ baltimore_df =
     victim_race = fct_relevel(victim_race, "White")) |> 
   select(resolved, victim_age, victim_race, victim_sex)
 
+# only keep resolved becuause the unresolved will be marked as 0 and resolved as 1 
+
 ```
 
 Using these data, we can fit a logistic regression for the binary “resolved” outcome and victim demographics as predictors. This uses the glm function with the family specified to account for the non-Gaussian outcome distribution.
